@@ -1,8 +1,9 @@
-import unittest
 import numpy as np
 import weakref
 import contextlib
 
+ # ===========================================
+# 变量类
 class Variable:
     def __init__(self, data, name = None):
         # 仅支持ndarray
@@ -98,33 +99,15 @@ class Variable:
             if not retain_grad:
                 for y in f.outputs:
                     y().grad = None # y是弱引用
-           
-
-
-# ===========================================
+ 
+ # ===========================================
 # 配置类
 class Config:
     enable_backprop = True # 实现模式切换，只有在训练模式中才需要记录中间变量和变量与函数之间的生成关系
 
-@contextlib.contextmanager
-def using_config(name, value):
-    # 进入函数后将enable_backprop设置为value
-    old_value = getattr(Config, name)
-    setattr(Config, name, value)
-    # 在with作用域内执行自己想要执行的操作
-    try: 
-        yield
-    # 离开作用域时将属性复原
-    finally:
-        setattr(Config, name, old_value)
-
-# 封装模式切换 不存储中间变量导数
-def no_grad():
-    return using_config('enable_backprop', False)
-
 
 # ===========================================
-# 函数类
+# 函数基类
 class Function:
     def __call__(self, *inputs): # 接受一个可变长参数
         inputs = [as_variable(x) for x in inputs] # 确保输入均为Variable实例
@@ -151,7 +134,7 @@ class Function:
         raise NotImplementedError()
 
 # ===========================================
-# 运算函数
+# 函数类
 class Add(Function):
     def forward(self, x0, x1):
         y = x0 + x1
@@ -209,23 +192,22 @@ class Pow(Function):
         gx = c * x ** (c - 1) * gy
         return gx
 
-class Square(Function):
-    def forward(self, x):
-        y = x ** 2
-        return y
 
-    def backward(self, gy):
-        x = self.inputs[0].data
-        gx = 2 * x * gy
-        return gx
+@contextlib.contextmanager
+def using_config(name, value):
+    # 进入函数后将enable_backprop设置为value
+    old_value = getattr(Config, name)
+    setattr(Config, name, value)
+    # 在with作用域内执行自己想要执行的操作
+    try: 
+        yield
+    # 离开作用域时将属性复原
+    finally:
+        setattr(Config, name, old_value)
 
-class Exp(Function):
-    def forward(self, x):
-        return np.exp(x)
-    
-    def backward(self, gy):
-        x = self.inputs[0].data
-        return np.exp(x) * gy
+# 封装模式切换 不存储中间变量导数
+def no_grad():
+    return using_config('enable_backprop', False)
 
 # ===========================================
 # 将函数类封装为函数，便于调用
@@ -233,44 +215,23 @@ def add(x0, x1):
     x1 = as_array(x1)
     return Add()(x0, x1)
 
-# 简单的运算符重载方法：
-Variable.__add__ = add
-Variable.__radd__ = add # 右加运算符重载，对于加法交换两个操作数结果一样
-
 def neg(x):
     return Neg()(x)
-
-Variable.__neg__ = neg
 
 def sub(x0, x1):
     x1 = as_array(x1)
     return Sub()(x0, x1)
 
-Variable.__sub__ = sub
-
 def rsub(x0, x1):
     x1 = as_array(x1)
     return Sub()(x1, x0) # 交换顺序
 
-Variable.__rsub__ = rsub
-
 def pow(x, c):
     return Pow(c)(x)
-
-Variable.__pow__ = pow
-
-def exp(x):
-    return Exp()(x)
-
-def square(x):
-    return Square()(x)
 
 def mul(x0, x1):
     x1 = as_array(x1)
     return Mul()(x0, x1)
-# 简单的运算符重载方法：
-Variable.__mul__ = mul
-Variable.__rmul__ = mul # 右乘运算符重载，对于乘法交换两个操作数结果一样
 
 def div(x0, x1):
     x1 = as_array(x1)
@@ -279,16 +240,6 @@ def div(x0, x1):
 def rdiv(x0, x1):
     x1 = as_array(x1)
     return Div()(x1, x0)
-
-Variable.__truediv__ = div
-Variable.__rtruediv__ = rdiv
-
-def numerical_diff(f, x, eps=1e-4):
-    x0 = Variable(x.data - eps)
-    x1 = Variable(x.data + eps)
-    y0 = f(x0)
-    y1 = f(x1)
-    return (y1.data - y0.data) / (2 * eps)
 
 # ===========================================
 # 工具函数
@@ -303,37 +254,16 @@ def as_array(x):
         return np.array(x)
     return x
 
-
 # ===========================================
-# 测试用例
-class SquareTest(unittest.TestCase):
-    def test_forward(self):
-        x = Variable(np.array(2.0))
-        y = square(x)
-        expected = np.array(4.0)
-        self.assertEqual(y.data, expected)
-
-    def test_backward(self):
-        x = Variable(np.array(3.0))
-        y = square(x)
-        y.backward()
-        expected = np.array(6.0)
-        self.assertEqual(x.grad, expected)
-
-    # 梯度检验
-    def test_gradient_check(self):
-        x = Variable(np.random.rand(1)) # 生成一个随机的输入
-        y = square(x)
-        y.backward()
-        num_grad = numerical_diff(square, x)
-        flg = np.allclose(x.grad, num_grad) # 两个值是否接近
-        self.assertTrue(flg)
-
-# ===========================================
-# 程序测试入口
-# unittest.main()
-
-x = Variable(np.array(2.0))
-y = x ** 3
-print(y)
-
+# 运算符重载
+def setup_variable():
+    Variable.__add__ = add
+    Variable.__radd__ = add
+    Variable.__mul__ = mul
+    Variable.__rmul__ = mul
+    Variable.__neg__ = neg
+    Variable.__sub__ = sub
+    Variable.__rsub__ = rsub
+    Variable.__rtruediv__ = div
+    Variable.__rtruediv__ = rdiv
+    Variable.__pow__ = pow
