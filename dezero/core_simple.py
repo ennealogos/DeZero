@@ -134,7 +134,7 @@ class Function:
         raise NotImplementedError()
 
 # ===========================================
-# 函数类
+# 基础运算函数类
 class Add(Function):
     def forward(self, x0, x1):
         y = x0 + x1
@@ -192,7 +192,13 @@ class Pow(Function):
         gx = c * x ** (c - 1) * gy
         return gx
 
+# ===========================================
+# 函数类
 
+
+
+# ===========================================
+# 配置类
 @contextlib.contextmanager
 def using_config(name, value):
     # 进入函数后将enable_backprop设置为value

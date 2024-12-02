@@ -2,6 +2,9 @@ import unittest
 import numpy as np
 import weakref
 import contextlib
+import math
+from dezero import Function
+from dezero import plot_dot_graph
 
 class Variable:
     def __init__(self, data, name = None):
@@ -290,6 +293,31 @@ def numerical_diff(f, x, eps=1e-4):
     y1 = f(x1)
     return (y1.data - y0.data) / (2 * eps)
 
+class Sin(Function):
+    def forward(self, x):
+        y = np.sin(x)
+        return y
+    
+    def backward(self, gy):
+        x = self.inputs[0].data
+        gx = gy * np.cos(x)
+        return gx
+
+def sin(x):
+    return Sin()(x)
+
+def my_sin(x, threshold=0.0001): # threshold用于精度控制
+    y = 0
+    for i in range(100000):
+        c = (-1) ** i / math.factorial(2 * i +1)
+        t = c * x ** (2 * i + 1)
+        y = y + t
+        if abs(t.data) < threshold: # 若余项小于threshold则退出
+            break
+    return y
+
+
+
 # ===========================================
 # 工具函数
 def as_variable(obj):
@@ -333,7 +361,11 @@ class SquareTest(unittest.TestCase):
 # 程序测试入口
 # unittest.main()
 
-x = Variable(np.array(2.0))
-y = x ** 3
-print(y)
+x = Variable(np.array(np.pi/4))
+y = my_sin(x,threshold=1e-150)
+# y = my_sin(x)
+y.backward()
+print(y.data)
+print(x.grad)
+plot_dot_graph(y, verbose=False, to_file='my_sin.png')
 
