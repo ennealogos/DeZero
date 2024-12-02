@@ -35,18 +35,9 @@ def f(x):
     return y
 
 
-x = Variable(np.array(1.0))
-y = F.tanh(x)
-x.name = 'x'
-y.name = 'y'
-y.backward(create_graph=True)
-
-iters = 7
-for i in range(iters):
-    gx = x.grad
-    x.cleargrad()
-    gx.backward(create_graph=True)
-# 绘制计算图
-gx = x.grad
-gx.name = 'gx' + str(iters+1)
-plot_dot_graph(gx, verbose=True, to_file='dot_output/step35/tanh_7.png')
+x = Variable(np.array([[1, 2, 3], [4, 5, 6]]))
+print(x.shape)
+y = x.transpose()
+print(y.shape)
+y = x.T
+print(y.shape)

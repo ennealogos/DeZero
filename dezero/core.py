@@ -1,6 +1,8 @@
 import numpy as np
 import weakref
 import contextlib
+import dezero
+import dezero.functions
 
 # ===========================================
 # 配置类
@@ -71,12 +73,27 @@ class Variable:
     def __repr__(self):
         if self.data is None:
             return 'variable(None)'
-        p = str(self.data).replace('\n', '\n' + ' ' * 8) # 保证多行输出时对齐
+        p = str(self.data).replace('\n', '\n' + ' ' * 9) # 保证多行输出时对齐
         return 'variable(' + p + ')'
 
     # 运算符重载
     # def __mul__(self, other):
     #     return mul(self, other)
+
+    def reshape(self, *shape):
+        if len(shape) == 1 and isinstance(shape[0], (tuple, list)):
+            shape = shape[0]
+        return dezero.functions.reshape(self, shape)
+    
+    def transpose(self):
+        return dezero.functions.transpose(self)
+    
+    @property
+    def T(self):
+        return dezero.functions.transpose(self)
+    
+    def sum(self, axis=None, keepdims=False):
+        return dezero.functions.sum(self, axis, keepdims)
 
     # 设定生成函数
     def set_creator(self, func):
