@@ -18,7 +18,7 @@ def _dot_var(v, verbose=False):
 
 # 将dezero函数转化为dot语言
 def _dot_func(f):
-    dot_func = '{} [label="{}", color=lightblue, style=filed, shape=box]\n'
+    dot_func = '{} [label="{}", color=lightblue, style=filled, shape=box]\n'
     txt = dot_func.format(id(f), f.__class__.__name__)
 
     dot_edge = '{} -> {}\n' # 节点之间的连接关系
